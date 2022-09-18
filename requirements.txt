@@ -1,0 +1,4 @@
+networkx==2.5
+numpy==1.22.3
+python_igraph==0.10.1
+scikit_learn==1.1.2

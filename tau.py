@@ -245,11 +245,11 @@ if __name__ == "__main__":
     # parse script parameters
     parser = argparse.ArgumentParser(description='TAU')
     # general parameters
-    parser.add_argument('--graph', type=str, help='path to graph file')
+    parser.add_argument('--graph', type=str, help='path to graph file; supports adjacency list format')
     parser.add_argument('--size', type=int, default=60, help='size of population; default is 60')
-    parser.add_argument('--workers', type=int, default=-1, help='number of workers; default is number of CPUs')
+    parser.add_argument('--workers', type=int, default=-1, help='number of workers; default is number of available CPUs')
     parser.add_argument('--max_generations', type=int, default=500, help='maximum number of generations to run;'
-                                                                         ' default is number of 500')
+                                                                         ' default is 500')
     args = parser.parse_args()
 
     g, _ = load_graph(args.graph)
