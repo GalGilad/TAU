@@ -228,7 +228,7 @@ def run_ga():
         pool.close()
         pool.join()
         offspring = [x.get() for x in results]
-        print(gen, 'Top fitness:', np.round(best_score, 6), '; Average fitness:',
+        print('Generation', gen, 'Top fitness:', np.round(best_score, 6), '; Average fitness:',
               np.round(np.mean(pop_fit), 6), '; Time per generation:', np.round(time.time() - start_time, 2),
               '; convergence:', cnt_convergence)
         pop = elite + offspring + immigs
@@ -253,7 +253,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     g, _ = load_graph(args.graph)
-    print(args.graph, g.vcount(), g.ecount())
+    print(args.graph)
     population_size = args.size
     if population_size < 10: population_size = 10
     p_elite, p_immig = .1, .15
@@ -270,4 +270,4 @@ if __name__ == "__main__":
     print('Parameter values: pop_size=%d, workers=%d, max_generations=%d' %(POPULATION_SIZE, N_WORKERS, MAX_GENS))
 
     best_partition = run_ga()
-    np.save('%s_best_partition_membership.npy' % args.graph, best_partition.membership)
+    np.save('%s_partition.npy' % args.graph, best_partition.membership)
