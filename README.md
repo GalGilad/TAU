@@ -1,6 +1,6 @@
 # TAU
 
-How to run (tested on Linux):
+How to run (on Linux):
 - python tau.py --graph path/to/graph
 
 List of parameters:
