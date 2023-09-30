@@ -190,7 +190,7 @@ def compute_partition_similarity_by_pop_idx(idx1, idx2):
     return jac
 
 
-def elitist_selection_helper(combinations):
+def selection_helper_compute_similarities(combinations):
     assert 0 < len(combinations) <= N_WORKERS
     pool = Pool(len(combinations))
     results = [pool.apply_async(compute_partition_similarity_by_pop_idx, (idx1, idx2))
@@ -202,48 +202,49 @@ def elitist_selection_helper(combinations):
     return similarities_dict
 
 
-def get_batch_size_for_n(k=0):
-    index_batch_size = 0
-    used_workers = 0
-    while used_workers < N_WORKERS:
-        index_batch_size += 1
-        used_workers = (index_batch_size ** 2 - index_batch_size) / 2 + index_batch_size * k
-    return index_batch_size-1
+def selection_helper_get_batch_of_pairs(elite_indices, candidate_idx, batch_size, computed=None):
+    pairs = list(itertools.product(elite_indices, [candidate_idx]))
+    pairs = [pair for pair in pairs if pair not in computed] if computed is not None else pairs
+    batch_overflow = False if len(pairs) < batch_size else True
+    i = 1
+    while not batch_overflow:
+        pairs += list(itertools.product(elite_indices, [candidate_idx+i]))
+        for j in range(i):
+            pairs.append((candidate_idx+j, candidate_idx+i))
+        batch_overflow = False if len(pairs) < batch_size else True
+        i += 1
+    return pairs[:batch_size]
 
 
 def elitist_selection(similarity_threshold):
-    index_batch_size = get_batch_size_for_n()
-    combinations = list(itertools.combinations(range(index_batch_size), 2))
-    similarities_between_solutions = elitist_selection_helper(combinations)
-    highest_idx_considered = index_batch_size-1
-    elite_idx = [0]
-    idx = 1
-    cnt_cycles = 1
-    while len(elite_idx) < N_ELITE and idx < len(pop):
-        if cnt_cycles == 2:
-            n_remaining = N_ELITE - len(elite_idx)
-            elite_idx += list(np.random.choice(np.arange(idx, len(pop)), size=n_remaining, replace=False))
+    elite_indices, candidate_idx = [0], 1
+    pairs_to_compute = selection_helper_get_batch_of_pairs(elite_indices=elite_indices, candidate_idx=candidate_idx,
+                                                           batch_size=N_WORKERS, computed=[])
+    similarities_between_solutions = selection_helper_compute_similarities(pairs_to_compute)
+    computation_cycle_i, max_cycles = 1, 2
+    computed_pairs = []
+    while len(elite_indices) < N_ELITE and candidate_idx < len(pop):
+        if computation_cycle_i == max_cycles:
+            n_remaining = N_ELITE - len(elite_indices)
+            elite_indices += list(np.random.choice(np.arange(candidate_idx, len(pop)), size=n_remaining, replace=False))
             break
         elite_flag = True
-        for elite_indiv_idx in elite_idx:
-            if (elite_indiv_idx, idx) not in similarities_between_solutions:
-                cnt_cycles += 1
-                index_batch_size = get_batch_size_for_n(len(elite_idx))
-                size_of_examined_range = index_batch_size
-                new_idx_range = range(highest_idx_considered, highest_idx_considered+size_of_examined_range)
-                new_combinations = list(itertools.product(new_idx_range, elite_idx))
-                new_combinations += list(itertools.combinations(new_idx_range, 2))
-                highest_idx_considered = new_idx_range[-1]
-                similarities_between_solutions.update(elitist_selection_helper(new_combinations))
-            jac = similarities_between_solutions[elite_indiv_idx, idx]
+        for elite_idx in elite_indices:
+            if (elite_idx, candidate_idx) not in similarities_between_solutions and computation_cycle_i < max_cycles:
+                computation_cycle_i += 1
+                computed_for_candidate = [(i, j) for (i, j) in computed_pairs
+                                          if i >= candidate_idx or j >= candidate_idx]
+                new_pairs = selection_helper_get_batch_of_pairs(elite_indices=elite_indices, candidate_idx=candidate_idx,
+                                                                batch_size=N_WORKERS, computed=computed_for_candidate)
+                similarities_between_solutions.update(selection_helper_compute_similarities(new_pairs))
+            jac = similarities_between_solutions[elite_idx, candidate_idx]
             if jac > similarity_threshold:
                 elite_flag = False
                 break
         if elite_flag:
-            elite_idx.append(idx)
-        idx += 1
-
-    return elite_idx
+            elite_indices.append(candidate_idx)
+        candidate_idx += 1
+    return elite_indices
 
 
 def find_partition():
